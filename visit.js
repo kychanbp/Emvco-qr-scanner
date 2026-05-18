@@ -217,13 +217,34 @@ function openForm(visitId) {
   `;
   elsV.form.appendChild(header);
 
-  VISIT_SCHEMA.forEach(group => {
+  VISIT_SCHEMA.forEach((group, gi) => {
     const sec = document.createElement('div');
     sec.className = 'visit-group';
-    sec.innerHTML = `<h3>${escapeV(group.group)}</h3>`;
-    group.fields.forEach(f => sec.appendChild(renderField(f, visit.data)));
+    // First group expanded by default; others collapsed
+    if (gi > 0) sec.classList.add('collapsed');
+    sec.dataset.groupIdx = gi;
+
+    const header = document.createElement('h3');
+    header.className = 'visit-group-header';
+    header.innerHTML = `
+      <span class="visit-group-chevron">▾</span>
+      <span class="visit-group-title">${escapeV(group.group)}</span>
+      <span class="visit-group-count" data-group-count="${gi}"></span>
+    `;
+    header.addEventListener('click', () => {
+      sec.classList.toggle('collapsed');
+    });
+    sec.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'visit-group-body';
+    group.fields.forEach(f => body.appendChild(renderField(f, visit.data)));
+    sec.appendChild(body);
+
     elsV.form.appendChild(sec);
   });
+
+  updateGroupCounts(visit.data);
 
   elsV.form.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
@@ -237,6 +258,7 @@ function openForm(visitId) {
     if (idx >= 0) all[idx] = visit;
     else all.unshift(visit);
     saveVisits(all);
+    updateGroupCounts(visit.data);
     if (indicator) {
       indicator.textContent = 'Saved ✓';
       indicator.classList.add('autosave-flash');
@@ -346,6 +368,28 @@ function renderField(f, data) {
   }
   wrap.appendChild(input);
   return wrap;
+}
+
+// Check whether a field has been filled in by the user
+function isFieldFilled(field, value) {
+  if (value === undefined || value === null || value === '') return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'object') return Object.keys(value).length > 0;
+  return true;
+}
+
+// Refresh the "(X/Y)" count displayed on each group header
+function updateGroupCounts(data) {
+  VISIT_SCHEMA.forEach((group, gi) => {
+    const filled = group.fields.filter(f => isFieldFilled(f, data[f.id])).length;
+    const total = group.fields.length;
+    const el = document.querySelector(`[data-group-count="${gi}"]`);
+    if (el) {
+      el.textContent = `${filled}/${total}`;
+      el.classList.toggle('visit-group-count-complete', filled === total);
+      el.classList.toggle('visit-group-count-partial', filled > 0 && filled < total);
+    }
+  });
 }
 
 // Build the "Other: please specify" input that appears when "Other" is selected/checked.

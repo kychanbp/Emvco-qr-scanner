@@ -344,6 +344,72 @@ textarea {
   letter-spacing: 0.05em;
 }
 
+.visit-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  padding: 8px 4px;
+  margin: -8px -4px 4px;
+  border-radius: 6px;
+  transition: background-color 120ms;
+}
+
+.visit-group-header:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.visit-group-chevron {
+  display: inline-block;
+  font-size: 12px;
+  color: var(--accent);
+  transition: transform 180ms;
+  width: 12px;
+}
+
+.visit-group.collapsed .visit-group-chevron {
+  transform: rotate(-90deg);
+}
+
+.visit-group-title {
+  flex: 1;
+}
+
+.visit-group-count {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: normal;
+  letter-spacing: normal;
+  text-transform: none;
+  padding: 2px 8px;
+  background: var(--bg);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.visit-group-count-partial {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.visit-group-count-complete {
+  color: #000;
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.visit-group-body {
+  overflow: hidden;
+  max-height: 5000px;
+  transition: max-height 220ms ease-out;
+}
+
+.visit-group.collapsed .visit-group-body {
+  max-height: 0;
+}
+
 .visit-field {
   margin-bottom: 12px;
 }
