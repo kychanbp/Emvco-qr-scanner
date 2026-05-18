@@ -4,7 +4,7 @@
 // - Cache-first for the heavy static library (jsQR) and icons.
 // - Stale cache is wiped on every activation.
 
-const VERSION = 'v13';
+const VERSION = 'v14';
 const CACHE_NAME = `emvco-qr-scanner-${VERSION}`;
 const NETWORK_TIMEOUT_MS = 2500;
 
@@ -14,6 +14,7 @@ const APP_SHELL = [
   'app.js',
   'parser.js',
   'visit.js',
+  'db.js',
   'style.css',
   'manifest.json',
 ];

@@ -520,7 +520,11 @@ function renderQrScansField(f, data) {
       row.className = 'qrscan-row qrscan-row-clickable';
       row.dataset.idx = i;
       const ts = new Date(s.ts).toLocaleTimeString();
+      const thumbHtml = s.thumbDataUrl
+        ? `<img class="qrscan-thumb" src="${s.thumbDataUrl}" alt="QR" data-image-id="${s.imageId || ''}" data-idx="${i}" />`
+        : '';
       row.innerHTML = `
+        ${thumbHtml}
         <div class="qrscan-row-body">
           <div class="qrscan-merchant">${escapeV(s.summary?.merchant || '(no name)')}</div>
           <div class="qrscan-meta">
@@ -533,6 +537,18 @@ function renderQrScansField(f, data) {
         <button class="icon-btn qrscan-remove" data-idx="${i}" aria-label="Remove">&times;</button>
       `;
       list.appendChild(row);
+    });
+    list.querySelectorAll('.qrscan-thumb').forEach(img => {
+      img.addEventListener('click', e => {
+        e.stopPropagation();
+        const id = img.dataset.imageId;
+        const idx = parseInt(img.dataset.idx, 10);
+        const arr2 = JSON.parse(hidden.value || '[]');
+        const scan = arr2[idx];
+        if (id && window.QrImageDB) {
+          openImageLightbox(id, scan);
+        }
+      });
     });
     list.querySelectorAll('.qrscan-row-clickable').forEach(row => {
       row.addEventListener('click', e => {
@@ -550,7 +566,10 @@ function renderQrScansField(f, data) {
       btn.addEventListener('click', e => {
         e.stopPropagation();
         const arr2 = JSON.parse(hidden.value || '[]');
-        arr2.splice(parseInt(btn.dataset.idx, 10), 1);
+        const removed = arr2.splice(parseInt(btn.dataset.idx, 10), 1)[0];
+        if (removed?.imageId && window.QrImageDB) {
+          window.QrImageDB.dbDelete(removed.imageId).catch(() => {});
+        }
         hidden.value = JSON.stringify(arr2);
         syncList();
       });
@@ -634,7 +653,7 @@ function renderQrScansField(f, data) {
           const now = Date.now();
           if (now - lastAutoAt > 2000) {
             lastAutoAt = now;
-            saveScan(code.data, statusEl);
+            saveScan(code.data, statusEl, canvas);
           }
         }
       }
@@ -642,19 +661,34 @@ function renderQrScansField(f, data) {
     }
   }
 
-  function saveScan(rawPayload, statusEl) {
+  async function saveScan(rawPayload, statusEl, sourceCanvas) {
     const decoded = window.EMVCO.decodePayload(rawPayload);
     const arr = JSON.parse(hidden.value || '[]');
     if (arr.some(s => s.raw === decoded.raw)) {
       if (statusEl) statusEl.textContent = `Already captured: ${decoded.summary.merchant || '(no name)'}`;
       return false;
     }
-    arr.unshift({
+    const scan = {
       ts: new Date().toISOString(),
       raw: decoded.raw,
       summary: decoded.summary,
       crcValid: decoded.crcValid,
-    });
+    };
+    // Snapshot the current frame if a source canvas was provided
+    if (sourceCanvas && window.QrImageDB) {
+      try {
+        const blob = await window.QrImageDB.canvasToJpegBlob(sourceCanvas, 0.85);
+        if (blob) {
+          const imageId = 'img_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+          await window.QrImageDB.dbPut(imageId, blob);
+          scan.imageId = imageId;
+          scan.thumbDataUrl = window.QrImageDB.makeThumbnailDataUrl(sourceCanvas, 200);
+        }
+      } catch (e) {
+        console.warn('image save failed', e);
+      }
+    }
+    arr.unshift(scan);
     hidden.value = JSON.stringify(arr);
     syncList();
     if (statusEl) statusEl.textContent = `✓ Captured: ${decoded.summary.merchant || '(no name)'}`;
@@ -693,7 +727,7 @@ function renderQrScansField(f, data) {
       if (code && code.data) payload = code.data;
     }
     if (payload) {
-      saveScan(payload, statusEl);
+      saveScan(payload, statusEl, canvas);
     } else {
       statusEl.textContent = 'No QR detected — aim more squarely / closer and try again.';
     }
@@ -821,6 +855,50 @@ function downloadFileV(name, mime, content) {
   a.download = name;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// Open a full-screen lightbox showing the saved scan image, with a Save / Share button.
+async function openImageLightbox(imageId, scan) {
+  if (!window.QrImageDB) return;
+  const blob = await window.QrImageDB.dbGet(imageId);
+  if (!blob) {
+    alert('Image no longer available (possibly cleared).');
+    return;
+  }
+  const objUrl = URL.createObjectURL(blob);
+  const lb = document.createElement('div');
+  lb.className = 'lightbox';
+  const tsLabel = scan?.ts ? new Date(scan.ts).toLocaleString() : '';
+  const merchant = scan?.summary?.merchant || 'QR scan';
+  lb.innerHTML = `
+    <div class="lightbox-inner">
+      <div class="lightbox-header">
+        <div>
+          <div class="lightbox-title">${escapeV(merchant)}</div>
+          <div class="lightbox-sub">${escapeV(tsLabel)}</div>
+        </div>
+        <button class="icon-btn" data-act="close" aria-label="Close">&times;</button>
+      </div>
+      <img class="lightbox-img" src="${objUrl}" alt="" />
+      <div class="lightbox-actions">
+        <button class="primary" data-act="share">📥 Save to Photos / Share</button>
+      </div>
+      <p class="muted" style="font-size:11px;text-align:center;margin:8px 0 0;">
+        Tip: you can also long-press the image to save it.
+      </p>
+    </div>
+  `;
+  document.body.appendChild(lb);
+  function cleanup() {
+    URL.revokeObjectURL(objUrl);
+    lb.remove();
+  }
+  lb.querySelector('[data-act="close"]').addEventListener('click', cleanup);
+  lb.addEventListener('click', e => { if (e.target === lb) cleanup(); });
+  lb.querySelector('[data-act="share"]').addEventListener('click', async () => {
+    const safeName = (merchant.replace(/[^\w]+/g, '_') || 'qr_scan') + '_' + (scan?.ts || '').replace(/[:.]/g, '-') + '.jpg';
+    await window.QrImageDB.shareOrDownload(blob, safeName);
+  });
 }
 
 function escapeV(s) {
