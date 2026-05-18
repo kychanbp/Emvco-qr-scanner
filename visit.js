@@ -383,10 +383,11 @@ function renderQrScansField(f, data) {
     }
     arr.forEach((s, i) => {
       const row = document.createElement('div');
-      row.className = 'qrscan-row';
+      row.className = 'qrscan-row qrscan-row-clickable';
+      row.dataset.idx = i;
       const ts = new Date(s.ts).toLocaleTimeString();
       row.innerHTML = `
-        <div>
+        <div class="qrscan-row-body">
           <div class="qrscan-merchant">${escapeV(s.summary?.merchant || '(no name)')}</div>
           <div class="qrscan-meta">
             ${escapeV(s.summary?.acquirer || '—')} ·
@@ -395,12 +396,25 @@ function renderQrScansField(f, data) {
             ${ts}
           </div>
         </div>
-        <button class="icon-btn" data-idx="${i}" aria-label="Remove">&times;</button>
+        <button class="icon-btn qrscan-remove" data-idx="${i}" aria-label="Remove">&times;</button>
       `;
       list.appendChild(row);
     });
-    list.querySelectorAll('.icon-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+    list.querySelectorAll('.qrscan-row-clickable').forEach(row => {
+      row.addEventListener('click', e => {
+        // Ignore clicks on the remove button
+        if (e.target.closest('.qrscan-remove')) return;
+        const idx = parseInt(row.dataset.idx, 10);
+        const arr2 = JSON.parse(hidden.value || '[]');
+        const scan = arr2[idx];
+        if (scan && typeof window.showDecodedResult === 'function') {
+          window.showDecodedResult(scan.raw);
+        }
+      });
+    });
+    list.querySelectorAll('.qrscan-remove').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
         const arr2 = JSON.parse(hidden.value || '[]');
         arr2.splice(parseInt(btn.dataset.idx, 10), 1);
         hidden.value = JSON.stringify(arr2);

@@ -426,6 +426,20 @@ textarea {
   gap: 8px;
 }
 
+.qrscan-row-clickable {
+  cursor: pointer;
+}
+
+.qrscan-row-clickable:hover {
+  background: var(--card-hover);
+  border-color: var(--accent);
+}
+
+.qrscan-row-body {
+  flex: 1;
+  min-width: 0;
+}
+
 .qrscan-merchant {
   font-weight: 600;
   font-size: 13px;

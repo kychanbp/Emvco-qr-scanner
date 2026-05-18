@@ -295,6 +295,14 @@ function saveToHistory(decoded) {
 // Expose so visit-form inline scans also land in the global history.
 window.appendScanToHistory = saveToHistory;
 
+// Expose a helper to show decoded payload detail from anywhere (e.g., visit form QR list).
+window.showDecodedResult = function (rawPayload) {
+  const decoded = window.EMVCO.decodePayload(rawPayload);
+  renderResult(decoded, els.resultBody);
+  els.result.classList.remove('hidden');
+  els.result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
 function updateHistoryCount() {
   els.historyCount.textContent = loadHistory().length;
 }
