@@ -36,6 +36,7 @@ els.tabs.forEach(tab => {
     els.tabs.forEach(t => t.classList.toggle('active', t === tab));
     document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${view}`));
     if (view === 'history') renderHistory();
+    if (view === 'visit' && window.refreshVisitList) window.refreshVisitList();
   });
 });
 

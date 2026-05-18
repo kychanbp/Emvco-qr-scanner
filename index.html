@@ -15,6 +15,7 @@
   <h1>EMVCo QR Scanner</h1>
   <div class="tabs">
     <button class="tab active" data-view="scan">Scan</button>
+    <button class="tab" data-view="visit">Visit (<span id="visitCount">0</span>)</button>
     <button class="tab" data-view="history">History (<span id="historyCount">0</span>)</button>
     <button class="tab" data-view="paste">Paste</button>
   </div>
@@ -34,6 +35,17 @@
       <input type="file" id="fileInput" accept="image/*" hidden />
     </div>
     <div id="scanStatus" class="status muted">Tap "Start camera" or "Upload image" to begin.</div>
+  </section>
+
+  <section id="view-visit" class="view">
+    <div class="visit-actions">
+      <button id="newVisitBtn" class="primary">+ New visit</button>
+      <button id="exportVisitsJsonBtn" class="secondary">Export JSON</button>
+      <button id="exportVisitsCsvBtn" class="secondary">Export CSV</button>
+      <button id="clearVisitsBtn" class="danger">Clear all</button>
+    </div>
+    <div id="visitList"></div>
+    <div id="visitForm" class="visit-form hidden"></div>
   </section>
 
   <section id="view-history" class="view">
@@ -68,6 +80,7 @@
 <script src="lib/jsQR.js"></script>
 <script src="parser.js"></script>
 <script src="app.js"></script>
+<script src="visit.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })

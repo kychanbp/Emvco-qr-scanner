@@ -270,6 +270,117 @@ textarea {
   flex-wrap: wrap;
 }
 
+/* --- Visit capture --- */
+.visit-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.visit-form {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-top: 12px;
+}
+
+.visit-form.hidden {
+  display: none;
+}
+
+.visit-form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.visit-form-header > div {
+  display: flex;
+  gap: 6px;
+}
+
+.visit-group {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.visit-group:first-of-type {
+  border-top: none;
+  margin-top: 0;
+}
+
+.visit-group h3 {
+  font-size: 13px;
+  color: var(--accent);
+  margin: 0 0 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.visit-field {
+  margin-bottom: 12px;
+}
+
+.visit-field > label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.visit-field input[type="text"],
+.visit-field input[type="number"],
+.visit-field textarea {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.visit-field textarea {
+  resize: vertical;
+  min-height: 60px;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 12px;
+}
+
+.option-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.option input {
+  margin: 0;
+}
+
+.option:has(input:checked) {
+  border-color: var(--accent);
+  background: rgba(74, 222, 128, 0.08);
+}
+
 footer {
   text-align: center;
   padding: 16px;
