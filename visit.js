@@ -166,6 +166,10 @@ function openForm(visitId) {
   const isNew = !visit;
   if (isNew) {
     visit = { id: 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7), ts: new Date().toISOString(), data: {} };
+    // Persist stub immediately so even a refresh keeps the record
+    const all = loadVisits();
+    all.unshift(visit);
+    saveVisits(all);
   }
 
   elsV.list.innerHTML = '';
@@ -176,10 +180,10 @@ function openForm(visitId) {
   header.className = 'visit-form-header';
   header.innerHTML = `
     <h2 style="margin: 0; font-size: 16px;">${isNew ? 'New visit' : 'Edit visit'}</h2>
-    <div>
-      <button id="cancelVisitBtn" class="secondary">Cancel</button>
-      ${!isNew ? '<button id="deleteVisitBtn" class="danger">Delete</button>' : ''}
-      <button id="saveVisitBtn" class="primary">Save</button>
+    <div class="visit-form-header-actions">
+      <span id="autosaveIndicator" class="autosave-indicator">Saved</span>
+      <button id="deleteVisitBtn" class="danger">Delete</button>
+      <button id="doneVisitBtn" class="primary">Back to list</button>
     </div>
   `;
   elsV.form.appendChild(header);
@@ -194,25 +198,38 @@ function openForm(visitId) {
 
   elsV.form.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-  document.getElementById('cancelVisitBtn').addEventListener('click', renderVisitList);
-  document.getElementById('saveVisitBtn').addEventListener('click', () => {
+  // Auto-save: any change to any field persists immediately.
+  const indicator = document.getElementById('autosaveIndicator');
+  let saveTimer = null;
+  function autoSave() {
     visit.data = collectFormData();
     const all = loadVisits();
     const idx = all.findIndex(v => v.id === visit.id);
     if (idx >= 0) all[idx] = visit;
     else all.unshift(visit);
     saveVisits(all);
+    if (indicator) {
+      indicator.textContent = 'Saved ✓';
+      indicator.classList.add('autosave-flash');
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => indicator.classList.remove('autosave-flash'), 700);
+    }
+  }
+  // Listen to all input and change events bubbling within the form
+  elsV.form.addEventListener('input', autoSave);
+  elsV.form.addEventListener('change', autoSave);
+
+  document.getElementById('doneVisitBtn').addEventListener('click', () => {
+    autoSave(); // belt-and-braces final save
     renderVisitList();
   });
-  if (!isNew) {
-    document.getElementById('deleteVisitBtn').addEventListener('click', () => {
-      if (confirm('Delete this visit?')) {
-        const all = loadVisits().filter(v => v.id !== visit.id);
-        saveVisits(all);
-        renderVisitList();
-      }
-    });
-  }
+  document.getElementById('deleteVisitBtn').addEventListener('click', () => {
+    if (confirm('Delete this visit? This cannot be undone.')) {
+      const all = loadVisits().filter(v => v.id !== visit.id);
+      saveVisits(all);
+      renderVisitList();
+    }
+  });
 }
 
 function renderField(f, data) {
