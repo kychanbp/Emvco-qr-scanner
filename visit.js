@@ -416,10 +416,18 @@ function renderQrScansField(f, data) {
     <div class="qrscans-cam-wrap">
       <video playsinline></video>
       <canvas></canvas>
+      <div class="qrscans-cam-overlay">
+        <div class="qrscans-cam-ind"></div>
+      </div>
     </div>
-    <div class="qrscans-cam-status muted">Point camera at a QR code.</div>
+    <div class="qrscans-cam-status muted">Aim at a QR, tap Capture.</div>
     <div class="qrscans-cam-controls">
-      <button type="button" class="secondary" data-act="stop">Done scanning</button>
+      <button type="button" class="primary" data-act="capture">📸 Capture</button>
+      <label class="qrscans-auto-toggle">
+        <input type="checkbox" data-act="auto" />
+        <span>Auto-scan</span>
+      </label>
+      <button type="button" class="secondary" data-act="stop">Done</button>
     </div>
   `;
 
@@ -429,8 +437,10 @@ function renderQrScansField(f, data) {
   scanBtn.textContent = '📷 Scan QR';
 
   let stream = null;
-  let scanning = false;
-  let lastDecodedAt = 0;
+  let videoRunning = false;
+  let autoMode = false;
+  let lastAutoAt = 0;
+  let lastDetectedCode = null; // updated each frame in auto mode; used by Capture button for snappier tap
 
   function startInlineScan() {
     cam.classList.remove('hidden');
@@ -438,6 +448,7 @@ function renderQrScansField(f, data) {
     const video = cam.querySelector('video');
     const canvas = cam.querySelector('canvas');
     const statusEl = cam.querySelector('.qrscans-cam-status');
+    const indicator = cam.querySelector('.qrscans-cam-ind');
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
       .then(s => {
         stream = s;
@@ -445,8 +456,8 @@ function renderQrScansField(f, data) {
         return video.play();
       })
       .then(() => {
-        scanning = true;
-        statusEl.textContent = 'Scanning… (camera stays open for multiple scans)';
+        videoRunning = true;
+        statusEl.textContent = autoMode ? 'Auto-scan on — pointing detects each QR.' : 'Aim at a QR, tap Capture.';
         loop();
       })
       .catch(err => {
@@ -455,37 +466,27 @@ function renderQrScansField(f, data) {
       });
 
     function loop() {
-      if (!scanning) return;
+      if (!videoRunning) return;
+      let code = null;
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         ctx.drawImage(video, 0, 0);
         const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+        code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
         if (code && code.data) {
+          lastDetectedCode = code.data;
+          indicator.classList.add('detected');
+        } else {
+          lastDetectedCode = null;
+          indicator.classList.remove('detected');
+        }
+        if (autoMode && code && code.data) {
           const now = Date.now();
-          // Debounce: don't capture same code repeatedly within 2 seconds
-          if (now - lastDecodedAt > 2000) {
-            lastDecodedAt = now;
-            const decoded = window.EMVCO.decodePayload(code.data);
-            const arr = JSON.parse(hidden.value || '[]');
-            // Avoid duplicates (same raw payload)
-            if (!arr.some(s => s.raw === decoded.raw)) {
-              arr.unshift({
-                ts: new Date().toISOString(),
-                raw: decoded.raw,
-                summary: decoded.summary,
-                crcValid: decoded.crcValid,
-              });
-              hidden.value = JSON.stringify(arr);
-              syncList();
-              statusEl.textContent = `Captured: ${decoded.summary.merchant || '(no name)'} — keep scanning, or tap "Done".`;
-              // Also append to global scan history for cross-view consistency
-              if (typeof window.appendScanToHistory === 'function') {
-                window.appendScanToHistory(decoded);
-              }
-            }
+          if (now - lastAutoAt > 2000) {
+            lastAutoAt = now;
+            saveScan(code.data, statusEl);
           }
         }
       }
@@ -493,8 +494,31 @@ function renderQrScansField(f, data) {
     }
   }
 
+  function saveScan(rawPayload, statusEl) {
+    const decoded = window.EMVCO.decodePayload(rawPayload);
+    const arr = JSON.parse(hidden.value || '[]');
+    if (arr.some(s => s.raw === decoded.raw)) {
+      if (statusEl) statusEl.textContent = `Already captured: ${decoded.summary.merchant || '(no name)'}`;
+      return false;
+    }
+    arr.unshift({
+      ts: new Date().toISOString(),
+      raw: decoded.raw,
+      summary: decoded.summary,
+      crcValid: decoded.crcValid,
+    });
+    hidden.value = JSON.stringify(arr);
+    syncList();
+    if (statusEl) statusEl.textContent = `✓ Captured: ${decoded.summary.merchant || '(no name)'}`;
+    if (typeof window.appendScanToHistory === 'function') {
+      window.appendScanToHistory(decoded);
+    }
+    if (navigator.vibrate) navigator.vibrate(60);
+    return true;
+  }
+
   function stopInlineScan() {
-    scanning = false;
+    videoRunning = false;
     if (stream) {
       stream.getTracks().forEach(t => t.stop());
       stream = null;
@@ -505,6 +529,34 @@ function renderQrScansField(f, data) {
 
   scanBtn.addEventListener('click', startInlineScan);
   cam.querySelector('[data-act="stop"]').addEventListener('click', stopInlineScan);
+  cam.querySelector('[data-act="capture"]').addEventListener('click', () => {
+    const statusEl = cam.querySelector('.qrscans-cam-status');
+    const video = cam.querySelector('video');
+    const canvas = cam.querySelector('canvas');
+    // Use the most recently-detected code if available; otherwise grab a fresh frame
+    let payload = lastDetectedCode;
+    if (!payload && video.readyState === video.HAVE_ENOUGH_DATA) {
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+      if (code && code.data) payload = code.data;
+    }
+    if (payload) {
+      saveScan(payload, statusEl);
+    } else {
+      statusEl.textContent = 'No QR detected — aim more squarely / closer and try again.';
+    }
+  });
+  cam.querySelector('[data-act="auto"]').addEventListener('change', e => {
+    autoMode = e.target.checked;
+    const statusEl = cam.querySelector('.qrscans-cam-status');
+    statusEl.textContent = autoMode
+      ? 'Auto-scan on — pointing detects each QR.'
+      : 'Aim at a QR, tap Capture.';
+  });
 
   // Stop camera when form is left
   window.addEventListener('beforeunload', stopInlineScan);

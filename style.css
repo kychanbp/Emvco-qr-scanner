@@ -475,6 +475,49 @@ textarea {
 .qrscans-cam-controls {
   display: flex;
   gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.qrscans-cam-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qrscans-cam-ind {
+  width: 60%;
+  height: 60%;
+  max-width: 240px;
+  max-height: 240px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-radius: 12px;
+  transition: border-color 120ms;
+}
+
+.qrscans-cam-ind.detected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(74,222,128,0.25);
+}
+
+.qrscans-auto-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 6px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.qrscans-auto-toggle input {
+  margin: 0;
 }
 
 footer {
