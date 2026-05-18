@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0a0a" />
+<title>EMVCo QR Scanner</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header>
+  <h1>EMVCo QR Scanner</h1>
+  <div class="tabs">
+    <button class="tab active" data-view="scan">Scan</button>
+    <button class="tab" data-view="history">History (<span id="historyCount">0</span>)</button>
+    <button class="tab" data-view="paste">Paste</button>
+  </div>
+</header>
+
+<main>
+  <section id="view-scan" class="view active">
+    <div id="cameraWrap">
+      <video id="video" playsinline></video>
+      <canvas id="overlay"></canvas>
+    </div>
+    <div class="controls">
+      <button id="startBtn" class="primary">Start camera</button>
+      <button id="stopBtn" class="secondary" disabled>Stop</button>
+      <button id="flipBtn" class="secondary" disabled>Flip camera</button>
+    </div>
+    <div id="scanStatus" class="status muted">Tap "Start camera" to begin scanning.</div>
+  </section>
+
+  <section id="view-history" class="view">
+    <div class="history-actions">
+      <button id="exportJsonBtn" class="secondary">Export JSON</button>
+      <button id="exportCsvBtn" class="secondary">Export CSV</button>
+      <button id="clearBtn" class="danger">Clear all</button>
+    </div>
+    <div id="historyList"></div>
+  </section>
+
+  <section id="view-paste" class="view">
+    <p class="muted">Paste a raw EMVCo QR payload string to decode without scanning:</p>
+    <textarea id="pasteInput" placeholder="00020101021126..." rows="4"></textarea>
+    <button id="parsePasteBtn" class="primary">Parse</button>
+    <div id="pasteResult"></div>
+  </section>
+
+  <section id="result" class="result hidden">
+    <div class="result-header">
+      <h2>Decoded payload</h2>
+      <button id="closeResult" class="icon-btn" aria-label="Close">&times;</button>
+    </div>
+    <div id="resultBody"></div>
+  </section>
+</main>
+
+<footer>
+  <p>Decodes per EMVCo MPM. All data stays on your device.</p>
+</footer>
+
+<script src="lib/jsQR.js"></script>
+<script src="parser.js"></script>
+<script src="app.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(console.error);
+}
+</script>
+</body>
+</html>
