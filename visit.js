@@ -157,6 +157,8 @@ function updateVisitCount() {
 }
 
 function renderVisitList() {
+  // Stop any inline camera that might still be running on the form we're leaving
+  if (typeof window.stopActiveInlineCamera === 'function') window.stopActiveInlineCamera();
   const arr = loadVisits();
   updateVisitCount();
   elsV.form.classList.add('hidden');
@@ -190,6 +192,8 @@ function renderVisitList() {
 }
 
 function openForm(visitId) {
+  // Stop any camera that might still be running on a previous form
+  if (typeof window.stopActiveInlineCamera === 'function') window.stopActiveInlineCamera();
   const arr = loadVisits();
   let visit = visitId ? arr.find(v => v.id === visitId) : null;
   const isNew = !visit;
@@ -266,12 +270,23 @@ function openForm(visitId) {
       saveTimer = setTimeout(() => indicator.classList.remove('autosave-flash'), 700);
     }
   }
-  // Listen to all input and change events bubbling within the form
+  // Detach any stale listener from a previous openForm before attaching the new one,
+  // otherwise stale closures over a previous visit will overwrite it with current form data.
+  if (elsV.form._autoSaveHandler) {
+    elsV.form.removeEventListener('input', elsV.form._autoSaveHandler);
+    elsV.form.removeEventListener('change', elsV.form._autoSaveHandler);
+  }
+  elsV.form._autoSaveHandler = autoSave;
   elsV.form.addEventListener('input', autoSave);
   elsV.form.addEventListener('change', autoSave);
 
   document.getElementById('doneVisitBtn').addEventListener('click', () => {
     autoSave(); // belt-and-braces final save
+    // If the visit is still empty (user opened "+ New visit" then backed out), delete the stub
+    if (Object.keys(visit.data).length === 0) {
+      const all = loadVisits().filter(v => v.id !== visit.id);
+      saveVisits(all);
+    }
     renderVisitList();
   });
   document.getElementById('deleteVisitBtn').addEventListener('click', () => {
@@ -670,43 +685,54 @@ function renderQrScansField(f, data) {
     }
   }
 
+  let saveInFlight = false;
   async function saveScan(rawPayload, statusEl, sourceCanvas) {
-    const decoded = window.EMVCO.decodePayload(rawPayload);
-    const arr = JSON.parse(hidden.value || '[]');
-    if (arr.some(s => s.raw === decoded.raw)) {
-      if (statusEl) statusEl.textContent = `Already captured: ${decoded.summary.merchant || '(no name)'}`;
-      return false;
-    }
-    const scan = {
-      ts: new Date().toISOString(),
-      raw: decoded.raw,
-      summary: decoded.summary,
-      crcValid: decoded.crcValid,
-    };
-    // Snapshot the current frame if a source canvas was provided
-    if (sourceCanvas && window.QrImageDB) {
-      try {
-        const blob = await window.QrImageDB.canvasToJpegBlob(sourceCanvas, 0.85);
-        if (blob) {
-          const imageId = 'img_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-          await window.QrImageDB.dbPut(imageId, blob);
-          scan.imageId = imageId;
-          scan.thumbDataUrl = window.QrImageDB.makeThumbnailDataUrl(sourceCanvas, 200);
-        }
-      } catch (e) {
-        console.warn('image save failed', e);
+    if (saveInFlight) return false; // guard against rapid double-taps and concurrent auto-mode firings
+    saveInFlight = true;
+    try {
+      const decoded = window.EMVCO.decodePayload(rawPayload);
+      const arr = JSON.parse(hidden.value || '[]');
+      if (arr.some(s => s.raw === decoded.raw)) {
+        if (statusEl) statusEl.textContent = `Already captured: ${decoded.summary.merchant || '(no name)'}`;
+        return false;
       }
+      const scan = {
+        ts: new Date().toISOString(),
+        raw: decoded.raw,
+        summary: decoded.summary,
+        crcValid: decoded.crcValid,
+      };
+      // Snapshot the current frame if a source canvas was provided
+      if (sourceCanvas && window.QrImageDB) {
+        try {
+          // Capture the thumbnail synchronously from the current frame before the canvas changes
+          scan.thumbDataUrl = window.QrImageDB.makeThumbnailDataUrl(sourceCanvas, 200);
+          const blob = await window.QrImageDB.canvasToJpegBlob(sourceCanvas, 0.85);
+          if (blob) {
+            const imageId = 'img_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+            await window.QrImageDB.dbPut(imageId, blob);
+            scan.imageId = imageId;
+          }
+        } catch (e) {
+          console.warn('image save failed', e);
+        }
+      }
+      // Re-read array in case anything changed during await; but we hold the lock so it shouldn't have
+      const finalArr = JSON.parse(hidden.value || '[]');
+      if (finalArr.some(s => s.raw === decoded.raw)) return false;
+      finalArr.unshift(scan);
+      hidden.value = JSON.stringify(finalArr);
+      fireInputEvent(hidden);
+      syncList();
+      if (statusEl) statusEl.textContent = `✓ Captured: ${decoded.summary.merchant || '(no name)'}`;
+      if (typeof window.appendScanToHistory === 'function') {
+        window.appendScanToHistory(decoded);
+      }
+      if (navigator.vibrate) navigator.vibrate(60);
+      return true;
+    } finally {
+      saveInFlight = false;
     }
-    arr.unshift(scan);
-    hidden.value = JSON.stringify(arr);
-    fireInputEvent(hidden);
-    syncList();
-    if (statusEl) statusEl.textContent = `✓ Captured: ${decoded.summary.merchant || '(no name)'}`;
-    if (typeof window.appendScanToHistory === 'function') {
-      window.appendScanToHistory(decoded);
-    }
-    if (navigator.vibrate) navigator.vibrate(60);
-    return true;
   }
 
   function stopInlineScan() {
@@ -717,9 +743,18 @@ function renderQrScansField(f, data) {
     }
     cam.classList.add('hidden');
     scanBtn.disabled = false;
+    // Clear global pointer if this was the active camera
+    if (window._activeInlineCameraStop === stopInlineScan) {
+      window._activeInlineCameraStop = null;
+    }
   }
 
-  scanBtn.addEventListener('click', startInlineScan);
+  scanBtn.addEventListener('click', () => {
+    // If another inline camera is running anywhere, stop it first
+    if (typeof window.stopActiveInlineCamera === 'function') window.stopActiveInlineCamera();
+    window._activeInlineCameraStop = stopInlineScan;
+    startInlineScan();
+  });
   cam.querySelector('[data-act="stop"]').addEventListener('click', stopInlineScan);
   cam.querySelector('[data-act="capture"]').addEventListener('click', () => {
     const statusEl = cam.querySelector('.qrscans-cam-status');
@@ -749,9 +784,6 @@ function renderQrScansField(f, data) {
       ? 'Auto-scan on — pointing detects each QR.'
       : 'Aim at a QR, tap Capture.';
   });
-
-  // Stop camera when form is left
-  window.addEventListener('beforeunload', stopInlineScan);
 
   wrap.appendChild(list);
   wrap.appendChild(scanBtn);
@@ -829,13 +861,16 @@ function exportVisitsCsv() {
       } else if (f.kind === 'qr_scans') {
         if (Array.isArray(val)) {
           row.push(val.length);
+          // Use ' / ' as a field separator inside one scan, ' // ' between scans.
+          // Strip any of these characters from values to avoid breaking the format.
+          const cleanCell = s => (s == null ? '' : String(s)).replace(/[\/]+/g, ' ').trim();
           row.push(val.map(s => [
-            s.summary?.merchant || '',
-            s.summary?.acquirer || '',
-            s.summary?.scheme || '',
-            s.summary?.mcc || '',
-            s.raw || '',
-          ].join('|')).join(';;'));
+            cleanCell(s.summary?.merchant),
+            cleanCell(s.summary?.acquirer),
+            cleanCell(s.summary?.scheme),
+            cleanCell(s.summary?.mcc),
+            cleanCell(s.raw),
+          ].join(' / ')).join(' // '));
         } else {
           row.push(0, '');
         }
@@ -870,9 +905,14 @@ function downloadFileV(name, mime, content) {
 // Open a full-screen lightbox showing the saved scan image, with a Save / Share button.
 async function openImageLightbox(imageId, scan) {
   if (!window.QrImageDB) return;
-  const blob = await window.QrImageDB.dbGet(imageId);
+  const blob = imageId ? await window.QrImageDB.dbGet(imageId) : null;
   if (!blob) {
-    alert('Image no longer available (possibly cleared).');
+    // Image not yet ready or has been cleared — show a soft notice instead of an alert.
+    const note = document.createElement('div');
+    note.className = 'toast';
+    note.textContent = 'Image not available yet — please re-tap in a moment.';
+    document.body.appendChild(note);
+    setTimeout(() => note.remove(), 2500);
     return;
   }
   const objUrl = URL.createObjectURL(blob);
@@ -925,3 +965,17 @@ window.addEventListener('DOMContentLoaded', initVisit);
 
 // Also expose count update so app.js's tab switching can refresh us
 window.refreshVisitList = renderVisitList;
+
+// Allow other modules (app.js tab switching) to stop the currently active inline camera.
+window.stopActiveInlineCamera = function () {
+  if (typeof window._activeInlineCameraStop === 'function') {
+    try { window._activeInlineCameraStop(); } catch {}
+  }
+};
+
+// Stop any active camera when the page is hidden (autolock, app switch, tab close).
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    window.stopActiveInlineCamera();
+  }
+});

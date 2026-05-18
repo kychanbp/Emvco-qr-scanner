@@ -33,6 +33,12 @@ let lastDecoded = null;
 els.tabs.forEach(tab => {
   tab.addEventListener('click', () => {
     const view = tab.dataset.view;
+    // Stop the Scan-tab camera when leaving Scan view (privacy + battery)
+    if (view !== 'scan' && scanning) stopCamera();
+    // Also stop any inline visit camera when leaving the Visit view
+    if (view !== 'visit' && typeof window.stopActiveInlineCamera === 'function') {
+      window.stopActiveInlineCamera();
+    }
     els.tabs.forEach(t => t.classList.toggle('active', t === tab));
     document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${view}`));
     if (view === 'history') renderHistory();
