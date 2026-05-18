@@ -402,6 +402,37 @@ textarea {
   background: rgba(74, 222, 128, 0.08);
 }
 
+.other-input-wrap {
+  display: none;
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: rgba(74, 222, 128, 0.05);
+  border: 1px dashed var(--accent);
+  border-radius: 6px;
+}
+
+.other-input-wrap.other-visible {
+  display: block;
+}
+
+.other-input-label {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.other-input-wrap input {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
 /* GPS field */
 .gps-field {
   display: flex;

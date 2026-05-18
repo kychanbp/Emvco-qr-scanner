@@ -281,6 +281,12 @@ function renderField(f, data) {
       optWrap.appendChild(document.createTextNode(opt));
       input.appendChild(optWrap);
     });
+    if (f.options.includes('Other')) {
+      input.appendChild(buildOtherInput(f, data, () => {
+        const checked = document.querySelector(`input[name="${f.id}"]:checked`);
+        return checked && checked.value === 'Other';
+      }));
+    }
   } else if (f.type === 'checkboxes') {
     input = document.createElement('div');
     input.className = 'option-grid';
@@ -299,12 +305,50 @@ function renderField(f, data) {
       optWrap.appendChild(document.createTextNode(opt));
       input.appendChild(optWrap);
     });
+    if (f.options.includes('Other')) {
+      input.appendChild(buildOtherInput(f, data, () => {
+        return !!document.querySelector(`input[name="${f.id}[]"][value="Other"]:checked`);
+      }));
+    }
   } else if (f.type === 'gps') {
     input = renderGpsField(f, data);
   } else if (f.type === 'qr_scans') {
     input = renderQrScansField(f, data);
   }
   wrap.appendChild(input);
+  return wrap;
+}
+
+// Build the "Other: please specify" input that appears when "Other" is selected/checked.
+// `isVisibleFn` is a function called on every relevant change to decide visibility.
+function buildOtherInput(f, data, isVisibleFn) {
+  const wrap = document.createElement('div');
+  wrap.className = 'other-input-wrap';
+  const otherId = 'f_' + f.id + '_other';
+  const existing = data[f.id + '_other'] || '';
+  wrap.innerHTML = `
+    <label for="${otherId}" class="other-input-label">Please specify:</label>
+    <input type="text" id="${otherId}" placeholder="Enter detail here…" value="${existing.replace(/"/g, '&quot;')}" />
+  `;
+  // Hidden by default; check after attach
+  setTimeout(() => updateVisibility(), 0);
+  // Update visibility on any change in the parent option grid
+  const parentGrid = wrap.parentNode;
+  function updateVisibility() {
+    if (isVisibleFn()) {
+      wrap.classList.add('other-visible');
+    } else {
+      wrap.classList.remove('other-visible');
+    }
+  }
+  // Use document-level event listener since the parent reference isn't stable at build time
+  setTimeout(() => {
+    const grid = wrap.parentElement;
+    if (grid) {
+      grid.addEventListener('change', updateVisibility);
+      updateVisibility();
+    }
+  }, 0);
   return wrap;
 }
 
@@ -617,6 +661,13 @@ function collectFormData() {
         const el = document.getElementById('f_' + f.id);
         if (el && el.value) {
           try { data[f.id] = JSON.parse(el.value); } catch {}
+        }
+      }
+      // Capture "Other: please specify" text for radio + checkbox fields
+      if ((f.type === 'radio' || f.type === 'checkboxes') && f.options?.includes('Other')) {
+        const otherEl = document.getElementById('f_' + f.id + '_other');
+        if (otherEl && otherEl.value.trim()) {
+          data[f.id + '_other'] = otherEl.value.trim();
         }
       }
     });
