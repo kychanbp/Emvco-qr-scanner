@@ -29,6 +29,21 @@ const VISIT_SCHEMA = [
     ],
   },
   {
+    group: 'Acquirer onboarding',
+    fields: [
+      { id: 'onboarding_method', label: 'How they were onboarded', type: 'radio', options: ['Bank branch visit', 'App self-service', 'Field sales rep visit', 'Online / web form', 'Partner / co-acquired', 'Inherited (took over existing business)', 'Other', 'Unknown'] },
+      { id: 'onboarding_who', label: 'Who reached them first (named person/team if known)', type: 'text', placeholder: 'e.g., Maybank Kuantan branch officer; or Boost field rep' },
+      { id: 'onboarded_when', label: 'When', type: 'radio', options: ['< 6 months ago', '6–12 months ago', '1–2 years ago', '2–5 years ago', '> 5 years ago', 'Unknown'] },
+      { id: 'onboarding_time_to_live', label: 'How long from sign-up to first transaction', type: 'radio', options: ['Same day', '1–3 days', '4–7 days', '1–2 weeks', '> 2 weeks', 'Unknown'] },
+      { id: 'onboarding_docs', label: 'Documents required', type: 'checkboxes', options: ['NRIC only', 'Business registration (SSM)', 'Bank account / book', 'Premise photo / video', 'Tax documents', 'Trade licence', 'Halal cert', 'Other'] },
+      { id: 'onboarding_pain', label: 'Onboarding pain points (in their words)', type: 'textarea', placeholder: 'e.g., Took 3 weeks to get first payout; had to revisit branch twice' },
+      { id: 'considered_switching', label: 'Have they considered switching acquirer?', type: 'radio', options: ['Yes — actively looking', 'Yes — somewhat open', 'No — happy with current', 'No — inertia / too much hassle', 'Unknown'] },
+      { id: 'acquirer_multi', label: 'Number of acquirers used', type: 'radio', options: ['Single acquirer only', 'Two acquirers', 'Three or more', 'Unknown'] },
+      { id: 'acquirer_field_rep_visits', label: 'Acquirer rep visits since onboarding', type: 'radio', options: ['Regularly (monthly+)', 'Occasionally (few times/year)', 'Once at onboarding only', 'Never since onboarding', 'Unknown'] },
+      { id: 'onboarding_cost_to_merchant', label: 'Cost to merchant for onboarding', type: 'radio', options: ['Free', 'One-time fee', 'Equipment rental', 'Other charges', 'Unknown'] },
+    ],
+  },
+  {
     group: 'Pain points',
     fields: [
       { id: 'pain_settlement', label: 'Settlement timing issues?', type: 'radio', options: ['Yes', 'No', 'Unknown'] },
