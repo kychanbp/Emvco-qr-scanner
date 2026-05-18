@@ -10,6 +10,7 @@ const VISIT_SCHEMA = [
     fields: [
       { id: 'merchant', label: 'Merchant name', type: 'text', placeholder: 'e.g., Legato Music Enterprise' },
       { id: 'location', label: 'Location / address', type: 'text', placeholder: 'e.g., East Coast Mall G-12, Kuantan' },
+      { id: 'gps', label: 'GPS coordinates', type: 'gps' },
       { id: 'type', label: 'Merchant type', type: 'radio', options: ['F&B', 'Retail', 'Services', 'Tourism', 'Mobile/electronics', 'Gold/jewellery', 'Other'] },
       { id: 'size', label: 'Size', type: 'radio', options: ['Single-op', 'SME (2–10 staff)', 'Chain'] },
       { id: 'years_op', label: 'Years in operation', type: 'text', placeholder: 'e.g., 3 years' },
@@ -24,7 +25,7 @@ const VISIT_SCHEMA = [
       { id: 'acquirer', label: 'Acquirer (from QR scan or self-reported)', type: 'text', placeholder: 'e.g., Public Bank Berhad' },
       { id: 'wallets_accepted', label: 'E-wallets accepted', type: 'checkboxes', options: ['DuitNow QR', 'TNG eWallet', 'Boost', 'GrabPay', 'ShopeePay', 'MAE', 'BigPay', 'Other'] },
       { id: 'avg_ticket', label: 'Average ticket size (rough)', type: 'radio', options: ['< MYR 50', 'MYR 50–200', 'MYR 200–500', 'MYR 500–2000', '> MYR 2000'] },
-      { id: 'qr_scan_refs', label: 'Linked QR scan refs (timestamps or merchant IDs)', type: 'textarea', placeholder: 'Optional — paste scan timestamps or notes' },
+      { id: 'qr_scans', label: 'Scanned QRs (one merchant may have multiple)', type: 'qr_scans' },
     ],
   },
   {
@@ -281,8 +282,238 @@ function renderField(f, data) {
       optWrap.appendChild(document.createTextNode(opt));
       input.appendChild(optWrap);
     });
+  } else if (f.type === 'gps') {
+    input = renderGpsField(f, data);
+  } else if (f.type === 'qr_scans') {
+    input = renderQrScansField(f, data);
   }
   wrap.appendChild(input);
+  return wrap;
+}
+
+// --- GPS field ---
+function renderGpsField(f, data) {
+  const wrap = document.createElement('div');
+  wrap.className = 'gps-field';
+  const current = data[f.id] && typeof data[f.id] === 'object' ? data[f.id] : null;
+
+  const display = document.createElement('div');
+  display.className = 'gps-display';
+  display.id = 'gps-display-' + f.id;
+  display.innerHTML = current ? gpsLine(current) : '<span class="muted">No GPS captured yet</span>';
+
+  const hidden = document.createElement('input');
+  hidden.type = 'hidden';
+  hidden.id = 'f_' + f.id;
+  hidden.value = current ? JSON.stringify(current) : '';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'secondary';
+  btn.textContent = '📍 Capture GPS';
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    btn.textContent = 'Locating…';
+    try {
+      const pos = await getGps();
+      const obj = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: Math.round(pos.coords.accuracy),
+        ts: new Date().toISOString(),
+      };
+      hidden.value = JSON.stringify(obj);
+      display.innerHTML = gpsLine(obj);
+    } catch (err) {
+      display.innerHTML = '<span class="crc-bad">GPS error: ' + escapeV(err.message) + '</span>';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '📍 Re-capture';
+    }
+  });
+
+  wrap.appendChild(display);
+  wrap.appendChild(btn);
+  wrap.appendChild(hidden);
+  return wrap;
+}
+
+function getGps() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation not supported'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(resolve, err => reject(new Error(err.message)), {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 0,
+    });
+  });
+}
+
+function gpsLine(g) {
+  const mapUrl = `https://www.google.com/maps?q=${g.lat},${g.lng}`;
+  return `<strong>${g.lat.toFixed(6)}, ${g.lng.toFixed(6)}</strong>
+    <span class="muted">(±${g.accuracy}m)</span>
+    <a href="${mapUrl}" target="_blank" rel="noopener" style="margin-left:8px;">Open in Maps ↗</a>`;
+}
+
+// --- QR scans field (inline camera, multi-scan) ---
+function renderQrScansField(f, data) {
+  const wrap = document.createElement('div');
+  wrap.className = 'qrscans-field';
+  const existing = Array.isArray(data[f.id]) ? data[f.id].slice() : [];
+
+  const list = document.createElement('div');
+  list.className = 'qrscans-list';
+  list.id = 'qrscans-list-' + f.id;
+
+  const hidden = document.createElement('input');
+  hidden.type = 'hidden';
+  hidden.id = 'f_' + f.id;
+  hidden.value = JSON.stringify(existing);
+
+  function syncList() {
+    const arr = JSON.parse(hidden.value || '[]');
+    list.innerHTML = '';
+    if (arr.length === 0) {
+      list.innerHTML = '<p class="muted" style="font-size:12px;margin:4px 0;">No QRs scanned for this visit yet.</p>';
+      return;
+    }
+    arr.forEach((s, i) => {
+      const row = document.createElement('div');
+      row.className = 'qrscan-row';
+      const ts = new Date(s.ts).toLocaleTimeString();
+      row.innerHTML = `
+        <div>
+          <div class="qrscan-merchant">${escapeV(s.summary?.merchant || '(no name)')}</div>
+          <div class="qrscan-meta">
+            ${escapeV(s.summary?.acquirer || '—')} ·
+            ${escapeV(s.summary?.scheme || '')} ·
+            ${escapeV(s.summary?.mcc || '')}${s.summary?.mccLabel ? ' (' + escapeV(s.summary.mccLabel) + ')' : ''} ·
+            ${ts}
+          </div>
+        </div>
+        <button class="icon-btn" data-idx="${i}" aria-label="Remove">&times;</button>
+      `;
+      list.appendChild(row);
+    });
+    list.querySelectorAll('.icon-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const arr2 = JSON.parse(hidden.value || '[]');
+        arr2.splice(parseInt(btn.dataset.idx, 10), 1);
+        hidden.value = JSON.stringify(arr2);
+        syncList();
+      });
+    });
+  }
+
+  // Inline camera area
+  const cam = document.createElement('div');
+  cam.className = 'qrscans-camera hidden';
+  cam.innerHTML = `
+    <div class="qrscans-cam-wrap">
+      <video playsinline></video>
+      <canvas></canvas>
+    </div>
+    <div class="qrscans-cam-status muted">Point camera at a QR code.</div>
+    <div class="qrscans-cam-controls">
+      <button type="button" class="secondary" data-act="stop">Done scanning</button>
+    </div>
+  `;
+
+  const scanBtn = document.createElement('button');
+  scanBtn.type = 'button';
+  scanBtn.className = 'secondary';
+  scanBtn.textContent = '📷 Scan QR';
+
+  let stream = null;
+  let scanning = false;
+  let lastDecodedAt = 0;
+
+  function startInlineScan() {
+    cam.classList.remove('hidden');
+    scanBtn.disabled = true;
+    const video = cam.querySelector('video');
+    const canvas = cam.querySelector('canvas');
+    const statusEl = cam.querySelector('.qrscans-cam-status');
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+      .then(s => {
+        stream = s;
+        video.srcObject = s;
+        return video.play();
+      })
+      .then(() => {
+        scanning = true;
+        statusEl.textContent = 'Scanning… (camera stays open for multiple scans)';
+        loop();
+      })
+      .catch(err => {
+        statusEl.textContent = 'Camera error: ' + err.message;
+        scanBtn.disabled = false;
+      });
+
+    function loop() {
+      if (!scanning) return;
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+        if (code && code.data) {
+          const now = Date.now();
+          // Debounce: don't capture same code repeatedly within 2 seconds
+          if (now - lastDecodedAt > 2000) {
+            lastDecodedAt = now;
+            const decoded = window.EMVCO.decodePayload(code.data);
+            const arr = JSON.parse(hidden.value || '[]');
+            // Avoid duplicates (same raw payload)
+            if (!arr.some(s => s.raw === decoded.raw)) {
+              arr.unshift({
+                ts: new Date().toISOString(),
+                raw: decoded.raw,
+                summary: decoded.summary,
+                crcValid: decoded.crcValid,
+              });
+              hidden.value = JSON.stringify(arr);
+              syncList();
+              statusEl.textContent = `Captured: ${decoded.summary.merchant || '(no name)'} — keep scanning, or tap "Done".`;
+              // Also append to global scan history for cross-view consistency
+              if (typeof window.appendScanToHistory === 'function') {
+                window.appendScanToHistory(decoded);
+              }
+            }
+          }
+        }
+      }
+      requestAnimationFrame(loop);
+    }
+  }
+
+  function stopInlineScan() {
+    scanning = false;
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
+    cam.classList.add('hidden');
+    scanBtn.disabled = false;
+  }
+
+  scanBtn.addEventListener('click', startInlineScan);
+  cam.querySelector('[data-act="stop"]').addEventListener('click', stopInlineScan);
+
+  // Stop camera when form is left
+  window.addEventListener('beforeunload', stopInlineScan);
+
+  wrap.appendChild(list);
+  wrap.appendChild(scanBtn);
+  wrap.appendChild(cam);
+  wrap.appendChild(hidden);
+  syncList();
   return wrap;
 }
 
@@ -299,6 +530,11 @@ function collectFormData() {
       } else if (f.type === 'checkboxes') {
         const checked = Array.from(document.querySelectorAll(`input[name="${f.id}[]"]:checked`));
         if (checked.length) data[f.id] = checked.map(c => c.value);
+      } else if (f.type === 'gps' || f.type === 'qr_scans') {
+        const el = document.getElementById('f_' + f.id);
+        if (el && el.value) {
+          try { data[f.id] = JSON.parse(el.value); } catch {}
+        }
       }
     });
   });
@@ -312,22 +548,59 @@ function exportVisitsJson() {
 
 function exportVisitsCsv() {
   const arr = loadVisits();
-  const fieldIds = VISIT_SCHEMA.flatMap(g => g.fields.map(f => f.id));
-  const headers = ['id', 'timestamp', ...fieldIds];
+  // Build column list. Expand 'gps' into gps_lat/lng/accuracy/ts; expand 'qr_scans' into a single
+  // semicolon-joined string with merchant|acquirer|scheme|mcc|raw per scan.
+  const headers = ['id', 'timestamp'];
+  const fields = [];
+  VISIT_SCHEMA.forEach(g => g.fields.forEach(f => {
+    if (f.type === 'gps') {
+      headers.push('gps_lat', 'gps_lng', 'gps_accuracy_m', 'gps_ts');
+      fields.push({ id: f.id, kind: 'gps' });
+    } else if (f.type === 'qr_scans') {
+      headers.push('qr_scans_count', 'qr_scans_detail');
+      fields.push({ id: f.id, kind: 'qr_scans' });
+    } else {
+      headers.push(f.id);
+      fields.push({ id: f.id, kind: 'plain' });
+    }
+  }));
+
   const rows = arr.map(v => {
-    const base = [v.id, v.ts];
-    const fields = fieldIds.map(fid => {
-      const val = v.data[fid];
-      if (val === undefined) return '';
-      if (Array.isArray(val)) return val.join('; ');
-      return val;
+    const row = [v.id, v.ts];
+    fields.forEach(f => {
+      const val = v.data[f.id];
+      if (f.kind === 'gps') {
+        if (val && typeof val === 'object') {
+          row.push(val.lat ?? '', val.lng ?? '', val.accuracy ?? '', val.ts ?? '');
+        } else {
+          row.push('', '', '', '');
+        }
+      } else if (f.kind === 'qr_scans') {
+        if (Array.isArray(val)) {
+          row.push(val.length);
+          row.push(val.map(s => [
+            s.summary?.merchant || '',
+            s.summary?.acquirer || '',
+            s.summary?.scheme || '',
+            s.summary?.mcc || '',
+            s.raw || '',
+          ].join('|')).join(';;'));
+        } else {
+          row.push(0, '');
+        }
+      } else {
+        if (val === undefined || val === null) row.push('');
+        else if (Array.isArray(val)) row.push(val.join('; '));
+        else row.push(val);
+      }
     });
-    return [...base, ...fields];
+    return row;
   });
+
   const csv = [headers, ...rows].map(r =>
     r.map(c => {
       const s = c == null ? '' : String(c);
-      return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+      return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
     }).join(',')
   ).join('\n');
   downloadFileV('merchant-visits.csv', 'text/csv', csv);

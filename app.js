@@ -280,6 +280,8 @@ function saveHistory(arr) {
 
 function saveToHistory(decoded) {
   const arr = loadHistory();
+  // Avoid duplicate of same raw payload within last 5 entries
+  if (arr.slice(0, 5).some(e => e.raw === decoded.raw)) return;
   arr.unshift({
     ts: new Date().toISOString(),
     raw: decoded.raw,
@@ -289,6 +291,9 @@ function saveToHistory(decoded) {
   if (arr.length > 500) arr.length = 500;
   saveHistory(arr);
 }
+
+// Expose so visit-form inline scans also land in the global history.
+window.appendScanToHistory = saveToHistory;
 
 function updateHistoryCount() {
   els.historyCount.textContent = loadHistory().length;
