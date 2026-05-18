@@ -190,9 +190,13 @@ function renderResult(decoded, container) {
 
   // Summary card
   const sum = decoded.summary;
+  const acquirerLine = sum.acquirer
+    ? escape(sum.acquirer) + (sum.participantId ? ` <span class="muted">(participant ${escape(sum.participantId)})</span>` : '')
+    : (sum.participantId ? `<span class="muted">participant ${escape(sum.participantId)}</span>` : '');
   const summaryHtml = `
     <div class="field"><div><div class="name">Merchant</div><div class="value"><strong>${escape(sum.merchant)}</strong></div></div></div>
     ${sum.scheme ? `<div class="field"><div><div class="name">Payment scheme</div><div class="value">${escape(sum.scheme)}</div></div></div>` : ''}
+    ${acquirerLine ? `<div class="field"><div><div class="name">Acquirer</div><div class="value">${acquirerLine}</div></div></div>` : ''}
     ${sum.city || sum.country ? `<div class="field"><div><div class="name">Location</div><div class="value">${escape([sum.city, sum.country].filter(Boolean).join(', '))}</div></div></div>` : ''}
     ${sum.mcc ? `<div class="field"><div><div class="name">MCC</div><div class="value">${escape(sum.mcc)}${sum.mccLabel ? ' — ' + escape(sum.mccLabel) : ''}</div></div></div>` : ''}
     ${sum.currency ? `<div class="field"><div><div class="name">Currency</div><div class="value">${escape(sum.currency)}</div></div></div>` : ''}
@@ -303,9 +307,10 @@ function renderHistory() {
     div.innerHTML = `
       <div class="merchant">${escape(entry.summary.merchant)}</div>
       <div class="meta">
+        ${entry.summary.acquirer ? escape(entry.summary.acquirer) + ' · ' : ''}
         ${entry.summary.scheme ? escape(entry.summary.scheme) + ' · ' : ''}
         ${entry.summary.city ? escape(entry.summary.city) + ' · ' : ''}
-        ${entry.summary.mcc ? 'MCC ' + escape(entry.summary.mcc) + ' · ' : ''}
+        ${entry.summary.mcc ? 'MCC ' + escape(entry.summary.mcc) + (entry.summary.mccLabel ? ' (' + escape(entry.summary.mccLabel) + ')' : '') + ' · ' : ''}
         ${entry.summary.initiation ? escape(entry.summary.initiation) + ' · ' : ''}
         ${ts}
       </div>
@@ -334,10 +339,12 @@ els.exportJsonBtn.addEventListener('click', () => {
 
 els.exportCsvBtn.addEventListener('click', () => {
   const arr = loadHistory();
-  const headers = ['timestamp', 'merchant', 'scheme', 'city', 'country', 'mcc', 'mcc_label', 'currency', 'amount', 'initiation', 'crc_valid', 'raw'];
+  const headers = ['timestamp', 'merchant', 'acquirer', 'participant_id', 'scheme', 'city', 'country', 'mcc', 'mcc_label', 'currency', 'amount', 'initiation', 'crc_valid', 'raw'];
   const rows = arr.map(e => [
     e.ts,
     e.summary.merchant,
+    e.summary.acquirer,
+    e.summary.participantId,
     e.summary.scheme,
     e.summary.city,
     e.summary.country,

@@ -1,6 +1,6 @@
 // Service worker: precache app shell so the scanner works fully offline once installed.
 
-const VERSION = 'v2';
+const VERSION = 'v3';
 const CACHE_NAME = `emvco-qr-scanner-${VERSION}`;
 const ASSETS = [
   './',

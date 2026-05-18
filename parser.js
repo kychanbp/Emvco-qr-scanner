@@ -69,6 +69,8 @@ const SCHEME_GUIDS = {
   'MY.COM.MYDUITNOWTNGD': 'DuitNow (TNG)',
   'ID.CO.QRIS.WWW': 'QRIS (Indonesia)',
   'A000000677010111': 'PromptPay (Thailand)',
+  'A000000615': 'PayNet / DuitNow QR (Malaysia, AID)',
+  'A0000006150001': 'PayNet / DuitNow QR (Malaysia, AID)',
   'A000000727': 'VietQR (Vietnam)',
   'COM.GRAB': 'Grab',
   'HK.COM.HKICL': 'FPS (Hong Kong)',
@@ -76,35 +78,283 @@ const SCHEME_GUIDS = {
   'COM.STRIPE': 'Stripe',
 };
 
+// ISO 18245 MCC codes (subset — most common consumer/merchant categories)
 const MCC_LOOKUP = {
-  '5411': 'Grocery / Supermarket',
-  '5499': 'Misc food / convenience',
-  '5812': 'Eating places / Restaurants',
-  '5813': 'Bars / Lounges',
-  '5814': 'Fast food restaurants',
-  '5912': 'Pharmacies',
-  '5921': 'Liquor stores',
-  '5942': 'Bookstores',
-  '5999': 'Misc retail',
-  '4111': 'Transportation — Local commuter',
-  '4121': 'Taxi / Limousine',
+  // Agriculture
+  '0742': 'Veterinary services',
+  '0763': 'Agricultural cooperatives',
+  '0780': 'Landscaping / horticultural',
+  // Contractors
+  '1520': 'General contractors',
+  '1711': 'Heating / plumbing / A/C',
+  '1731': 'Electrical contractors',
+  '1740': 'Masonry / tile',
+  '1750': 'Carpentry',
+  '1761': 'Roofing / siding',
+  '1771': 'Concrete work',
+  '1799': 'Special trade contractors',
+  // Transportation
+  '4111': 'Local / suburban commuter transport',
+  '4112': 'Passenger railways',
+  '4119': 'Ambulance services',
+  '4121': 'Taxi / limousine',
   '4131': 'Bus lines',
-  '4789': 'Transport services NEC',
-  '5499': 'Misc food stores',
-  '5331': 'Variety stores',
+  '4214': 'Motor freight / trucking',
+  '4215': 'Courier services',
+  '4225': 'Storage / warehousing',
+  '4411': 'Cruise lines',
+  '4457': 'Boat rentals',
+  '4468': 'Marinas / yacht clubs',
+  '4511': 'Airlines',
+  '4582': 'Airports / flying fields',
+  '4722': 'Travel agencies / tour operators',
+  '4784': 'Tolls / road fees',
+  '4789': 'Transportation services NEC',
+  // Utilities
+  '4812': 'Telecom equipment',
+  '4814': 'Telecom services',
+  '4815': 'Monthly telecom service',
+  '4816': 'Computer network services',
+  '4821': 'Telegraph services',
+  '4829': 'Wire transfer / money order',
+  '4899': 'Cable / pay TV',
+  '4900': 'Utilities — electric/gas/water',
+  // Retail — general
+  '5111': 'Stationery / office supplies',
+  '5122': 'Drugs / pharmaceuticals (wholesale)',
+  '5172': 'Petroleum / petroleum products',
+  '5192': 'Books / periodicals (wholesale)',
+  '5211': 'Building materials / hardware',
+  '5251': 'Hardware stores',
+  '5261': 'Nurseries / lawn / garden',
+  '5271': 'Mobile home dealers',
+  '5300': 'Wholesale clubs',
+  '5309': 'Duty-free stores',
+  '5310': 'Discount stores',
   '5311': 'Department stores',
-  '7011': 'Hotels / Lodging',
-  '7299': 'Misc personal services',
-  '8011': 'Doctors',
-  '8021': 'Dentists',
-  '8062': 'Hospitals',
+  '5331': 'Variety stores',
+  '5399': 'Misc general merchandise',
+  // Food & beverage retail
+  '5411': 'Grocery / supermarket',
+  '5422': 'Meat / freezer / locker provisioners',
+  '5441': 'Candy / nut / confectionery',
+  '5451': 'Dairy products stores',
+  '5462': 'Bakeries',
+  '5499': 'Misc food / convenience stores',
+  // Apparel
+  '5511': 'Auto / truck dealers (new/used)',
+  '5521': 'Auto / truck dealers (used only)',
+  '5531': 'Auto / home supply stores',
+  '5532': 'Tire dealers',
+  '5533': 'Auto parts / accessories',
+  '5541': 'Service stations',
+  '5542': 'Automated fuel dispensers',
+  '5551': 'Boat dealers',
+  '5561': 'Recreational / utility trailers',
+  '5571': 'Motorcycle dealers',
+  '5592': 'Motor home dealers',
+  '5598': 'Snowmobile dealers',
+  '5599': 'Misc auto / aircraft / farm equipment',
+  '5611': 'Men\'s / boys\' clothing',
+  '5621': 'Women\'s ready-to-wear',
+  '5631': 'Women\'s accessory / specialty',
+  '5641': 'Children\'s / infants\' wear',
   '5651': 'Family clothing',
-  '5691': 'Apparel — Men/Women',
-  '7832': 'Cinema',
+  '5655': 'Sports / riding apparel',
+  '5661': 'Shoe stores',
+  '5681': 'Furriers / fur shops',
+  '5691': 'Men\'s / women\'s clothing',
+  '5697': 'Tailors / alterations',
+  '5698': 'Wig / toupee shops',
+  '5699': 'Misc apparel / accessory',
+  // Home & furnishings
+  '5712': 'Furniture / home furnishings',
+  '5713': 'Floor covering stores',
+  '5714': 'Drapery / upholstery',
+  '5718': 'Fireplace / fireplace screens',
+  '5719': 'Misc home furnishings',
+  '5722': 'Household appliance stores',
   '5732': 'Electronics stores',
-  '5945': 'Hobby / Toy / Game shops',
-  '5993': 'Cigar / Tobacco stores',
-  '6011': 'ATM withdrawal',
+  '5733': 'Music stores — instruments / sheet music',
+  '5734': 'Computer software stores',
+  '5735': 'Record / music shops',
+  // Restaurants & food
+  '5811': 'Caterers',
+  '5812': 'Eating places / restaurants',
+  '5813': 'Bars / lounges / discos',
+  '5814': 'Fast food restaurants',
+  // Drug / health
+  '5912': 'Pharmacies / drug stores',
+  '5921': 'Package stores — beer / wine / liquor',
+  '5931': 'Used merchandise / secondhand',
+  '5932': 'Antique shops',
+  '5933': 'Pawn shops',
+  '5935': 'Wrecking / salvage yards',
+  '5937': 'Antique reproductions',
+  '5940': 'Bicycle shops',
+  '5941': 'Sporting goods',
+  '5942': 'Bookstores',
+  '5943': 'Stationery / office supplies',
+  '5944': 'Jewelry / watch / clock / silverware',
+  '5945': 'Hobby / toy / game shops',
+  '5946': 'Camera / photographic supply',
+  '5947': 'Gift / card / novelty / souvenir',
+  '5948': 'Luggage / leather goods',
+  '5949': 'Sewing / needlework / fabric',
+  '5950': 'Glassware / crystal',
+  '5960': 'Direct marketing — insurance services',
+  '5961': 'Mail order / catalogues',
+  '5962': 'Direct marketing — travel',
+  '5963': 'Door-to-door sales',
+  '5964': 'Direct marketing — catalog merchant',
+  '5965': 'Direct marketing — combined catalog/retail',
+  '5966': 'Direct marketing — outbound telemarketing',
+  '5967': 'Direct marketing — inbound telemarketing',
+  '5968': 'Direct marketing — subscription',
+  '5969': 'Direct marketing — other',
+  '5970': 'Artist supply / craft shops',
+  '5971': 'Art dealers / galleries',
+  '5972': 'Stamp / coin stores',
+  '5973': 'Religious goods stores',
+  '5975': 'Hearing aids',
+  '5976': 'Orthopedic goods',
+  '5977': 'Cosmetic stores',
+  '5978': 'Typewriter stores',
+  '5983': 'Fuel — heating / cooking',
+  '5992': 'Florists',
+  '5993': 'Cigar / tobacco stores',
+  '5994': 'News dealers / newsstands',
+  '5995': 'Pet shops / pet food / supplies',
+  '5996': 'Swimming pools — sales',
+  '5997': 'Electric razor stores',
+  '5998': 'Tent / awning shops',
+  '5999': 'Misc retail',
+  // Financial
+  '6010': 'Financial institutions — manual cash',
+  '6011': 'Financial institutions — ATM',
+  '6012': 'Financial institutions — merchandise',
+  '6051': 'Quasi-cash — money orders / FX',
+  '6211': 'Securities brokers / dealers',
+  '6300': 'Insurance — sales / underwriting',
+  '6513': 'Real estate agents / managers',
+  '6532': 'Payment transactions — member-acquired',
+  '6533': 'Payment transactions — merchant',
+  '6540': 'Stored value card / load',
+  // Services
+  '7011': 'Hotels / motels / resorts',
+  '7012': 'Timeshares',
+  '7032': 'Sporting / recreation camps',
+  '7033': 'Trailer parks / campgrounds',
+  '7210': 'Laundry / dry cleaning',
+  '7211': 'Laundries — family / commercial',
+  '7216': 'Dry cleaners',
+  '7217': 'Carpet / upholstery cleaning',
+  '7221': 'Photographic studios',
+  '7230': 'Beauty / barber shops',
+  '7251': 'Shoe repair / hat cleaning',
+  '7261': 'Funeral services / crematoriums',
+  '7273': 'Dating / escort services',
+  '7276': 'Tax preparation services',
+  '7277': 'Counseling — debt / marriage / personal',
+  '7278': 'Buying / shopping services',
+  '7296': 'Clothing rental',
+  '7297': 'Massage parlors',
+  '7298': 'Health / beauty spas',
+  '7299': 'Misc personal services',
+  '7311': 'Advertising services',
+  '7321': 'Consumer credit reporting',
+  '7333': 'Commercial photography / art / graphics',
+  '7338': 'Quick copy / reproduction / blueprint',
+  '7339': 'Stenographic / secretarial support',
+  '7342': 'Exterminating / disinfecting',
+  '7349': 'Cleaning / maintenance / janitorial',
+  '7361': 'Employment agencies / temp help',
+  '7372': 'Computer programming / data processing',
+  '7375': 'Information retrieval services',
+  '7379': 'Computer maintenance / repair',
+  '7392': 'Management / consulting / PR',
+  '7393': 'Detective / protective / security',
+  '7394': 'Equipment rental / leasing',
+  '7395': 'Photofinishing labs / photo dev',
+  '7399': 'Business services NEC',
+  '7512': 'Car rental agencies',
+  '7513': 'Truck / utility trailer rentals',
+  '7519': 'Motor home / RV rental',
+  '7523': 'Parking lots / garages',
+  '7531': 'Auto body repair',
+  '7534': 'Tire retreading / repair',
+  '7535': 'Auto paint shops',
+  '7538': 'Automotive service shops',
+  '7542': 'Car washes',
+  '7549': 'Towing services',
+  '7622': 'Electronics repair',
+  '7623': 'Air conditioning / refrigeration repair',
+  '7629': 'Electrical / small appliance repair',
+  '7631': 'Watch / clock / jewelry repair',
+  '7641': 'Furniture / refinishing / repair',
+  '7692': 'Welding repair',
+  '7699': 'Repair shops / services NEC',
+  '7829': 'Motion picture / video production',
+  '7832': 'Cinema / motion picture theatres',
+  '7841': 'Video tape rental stores',
+  '7911': 'Dance halls / studios / schools',
+  '7922': 'Theatrical producers / ticket agencies',
+  '7929': 'Bands / orchestras / entertainers',
+  '7932': 'Pool / billiard establishments',
+  '7933': 'Bowling alleys',
+  '7941': 'Commercial sports / pro sports',
+  '7991': 'Tourist attractions / exhibits',
+  '7992': 'Public golf courses',
+  '7993': 'Video amusement game supplies',
+  '7994': 'Video game arcades / establishments',
+  '7995': 'Betting — casinos / lottery',
+  '7996': 'Amusement parks / circuses / fairs',
+  '7997': 'Membership clubs — country / golf',
+  '7998': 'Aquariums / dolphinariums / zoos',
+  '7999': 'Recreation services NEC',
+  // Healthcare
+  '8011': 'Doctors',
+  '8021': 'Dentists / orthodontists',
+  '8031': 'Osteopaths',
+  '8041': 'Chiropractors',
+  '8042': 'Optometrists / ophthalmologists',
+  '8043': 'Opticians / optical goods',
+  '8044': 'Optical goods / eyeglasses',
+  '8049': 'Podiatrists / chiropodists',
+  '8050': 'Nursing / personal care facilities',
+  '8062': 'Hospitals',
+  '8071': 'Medical / dental labs',
+  '8099': 'Medical services / health NEC',
+  // Education
+  '8211': 'Elementary / secondary schools',
+  '8220': 'Colleges / universities',
+  '8241': 'Correspondence schools',
+  '8244': 'Business / secretarial schools',
+  '8249': 'Vocational / trade schools',
+  '8299': 'Schools / educational services (other)',
+  // Other services
+  '8351': 'Child care services',
+  '8398': 'Charitable / social organizations',
+  '8641': 'Civic / social / fraternal associations',
+  '8651': 'Political organizations',
+  '8661': 'Religious organizations',
+  '8675': 'Automobile associations',
+  '8699': 'Membership organizations NEC',
+  '8734': 'Testing laboratories',
+  '8911': 'Architectural / engineering / surveying',
+  '8931': 'Accounting / auditing / bookkeeping',
+  '8999': 'Professional services NEC',
+  // Government
+  '9211': 'Court costs / alimony / child support',
+  '9222': 'Fines',
+  '9223': 'Bail / bond payments',
+  '9311': 'Tax payments',
+  '9399': 'Government services NEC',
+  '9402': 'Postal services — government only',
+  '9405': 'U.S. federal government agencies',
+  '9700': 'Automated referral services',
+  '9702': 'Emergency services (GCAS)',
+  '9950': 'Intra-company purchases',
 };
 
 const CURRENCY_LOOKUP = {
@@ -121,6 +371,71 @@ const CURRENCY_LOOKUP = {
   '392': 'JPY',
   '410': 'KRW',
   '608': 'PHP',
+};
+
+// Acquirer prefixes in the merchant account number (sub-tag 02 of merchant account info).
+// Matched by longest prefix. Entries are case-insensitive at lookup time.
+const ACQUIRER_PREFIXES = {
+  // Malaysia — banks
+  'PBB': 'Public Bank Berhad',
+  'PBE': 'Public Bank Berhad',
+  'MBB': 'Maybank',
+  'MAYBANK': 'Maybank',
+  'MAY': 'Maybank',
+  'CIMB': 'CIMB Bank',
+  'CIM': 'CIMB Bank',
+  'HLB': 'Hong Leong Bank',
+  'RHB': 'RHB Bank',
+  'AMB': 'AmBank',
+  'AMBANK': 'AmBank',
+  'UOB': 'UOB Malaysia',
+  'HSB': 'HSBC Malaysia',
+  'HSBC': 'HSBC Malaysia',
+  'SCB': 'Standard Chartered Malaysia',
+  'ALB': 'Alliance Bank',
+  'AIB': 'Alliance Bank',
+  'BIM': 'Bank Islam Malaysia',
+  'BSN': 'Bank Simpanan Nasional',
+  'BMM': 'Bank Muamalat',
+  'OCB': 'OCBC Malaysia',
+  'CIT': 'Citibank Malaysia',
+  'AFB': 'Affin Bank',
+  // Malaysia — e-money
+  'TNG': 'Touch \'n Go eWallet',
+  'TNGD': 'Touch \'n Go eWallet',
+  'BOOST': 'Boost',
+  'GRAB': 'GrabPay',
+  'GRABPAY': 'GrabPay',
+  'SPAY': 'ShopeePay',
+  'SHOPEEPAY': 'ShopeePay',
+  'BIGPAY': 'BigPay',
+  'MAE': 'Maybank MAE',
+  // Singapore — common banks (PayNow scheme)
+  'DBS': 'DBS Bank',
+  'OCBC': 'OCBC Bank',
+  'UOBSG': 'UOB Singapore',
+  // Generic identifier from participant ID (numeric) — most schemes don't expose this cleanly
+};
+
+// Common PayNet participant codes seen in QR tag 26 sub-tag 01.
+// Coverage is approximate; verify against known QRs you collect.
+const PAYNET_PARTICIPANTS = {
+  '562003': 'Maybank',
+  '564162': 'Public Bank Berhad',
+  '564000': 'CIMB Bank',
+  '566001': 'RHB Bank',
+  '566204': 'Hong Leong Bank',
+  '566203': 'AmBank',
+  '566205': 'UOB Malaysia',
+  '566207': 'OCBC Malaysia',
+  '566208': 'Standard Chartered Malaysia',
+  '566209': 'HSBC Malaysia',
+  '566210': 'Alliance Bank',
+  '566211': 'Bank Islam',
+  '566212': 'Bank Simpanan Nasional',
+  '566213': 'Bank Muamalat',
+  '566214': 'Affin Bank',
+  '566215': 'Citibank Malaysia',
 };
 
 const COUNTRY_LOOKUP = {
@@ -246,6 +561,19 @@ function decodePayload(payload) {
   };
 }
 
+// Detect acquirer from a merchant account string by longest-prefix match.
+function detectAcquirerFromAccount(accountStr) {
+  if (!accountStr) return '';
+  const upper = accountStr.toUpperCase();
+  let best = '';
+  for (const prefix of Object.keys(ACQUIRER_PREFIXES)) {
+    if (upper.startsWith(prefix) && prefix.length > best.length) {
+      best = prefix;
+    }
+  }
+  return best ? ACQUIRER_PREFIXES[best] : '';
+}
+
 // Flatten a few key fields for the history view
 function buildSummary(entries) {
   const get = t => entries.find(e => e.tag === t);
@@ -257,14 +585,33 @@ function buildSummary(entries) {
   const country = get('58');
   const initiation = get('01');
 
-  // find first scheme GUID from any merchant account info template
+  // Walk merchant account templates to find scheme + acquirer
   let scheme = '';
+  let acquirer = '';
+  let participantId = '';
   for (const e of entries) {
     const n = parseInt(e.tag, 10);
     if ((n >= 2 && n <= 51) || (n >= 80 && n <= 99)) {
-      const guid = e.children?.find(c => c.tag === '00');
-      if (guid?.extra) { scheme = guid.extra; break; }
-      if (guid?.value) { scheme = guid.value; break; }
+      const children = e.children || [];
+      const guid = children.find(c => c.tag === '00');
+      const participant = children.find(c => c.tag === '01');
+      const account = children.find(c => c.tag === '02');
+
+      if (!scheme && guid) {
+        scheme = guid.extra || guid.value || '';
+      }
+      if (!participantId && participant) {
+        participantId = participant.value || '';
+      }
+      // Try participant code first (more reliable)
+      if (!acquirer && participant && PAYNET_PARTICIPANTS[participant.value]) {
+        acquirer = PAYNET_PARTICIPANTS[participant.value];
+      }
+      // Fall back to account prefix
+      if (!acquirer && account) {
+        acquirer = detectAcquirerFromAccount(account.value);
+      }
+      if (scheme && acquirer) break;
     }
   }
 
@@ -278,6 +625,8 @@ function buildSummary(entries) {
     amount: amount?.value || '',
     initiation: initiation?.value === '11' ? 'static' : initiation?.value === '12' ? 'dynamic' : '',
     scheme,
+    acquirer,
+    participantId,
   };
 }
 
