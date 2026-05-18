@@ -6,6 +6,8 @@ const els = {
   startBtn: document.getElementById('startBtn'),
   stopBtn: document.getElementById('stopBtn'),
   flipBtn: document.getElementById('flipBtn'),
+  uploadBtn: document.getElementById('uploadBtn'),
+  fileInput: document.getElementById('fileInput'),
   scanStatus: document.getElementById('scanStatus'),
   result: document.getElementById('result'),
   resultBody: document.getElementById('resultBody'),
@@ -78,6 +80,68 @@ function flipCamera() {
 els.startBtn.addEventListener('click', startCamera);
 els.stopBtn.addEventListener('click', stopCamera);
 els.flipBtn.addEventListener('click', flipCamera);
+els.uploadBtn.addEventListener('click', () => els.fileInput.click());
+els.fileInput.addEventListener('change', handleFileUpload);
+
+// --- Decode from uploaded image ---
+async function handleFileUpload(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  els.scanStatus.textContent = 'Decoding image…';
+  if (scanning) stopCamera();
+  try {
+    const img = await loadImage(file);
+    const decoded = decodeImageQR(img);
+    if (decoded) {
+      handleDecoded(decoded);
+    } else {
+      els.scanStatus.textContent = 'No QR code found in this image. Try a clearer or cropped image.';
+    }
+  } catch (err) {
+    els.scanStatus.textContent = 'Image load error: ' + err.message;
+  } finally {
+    els.fileInput.value = ''; // allow re-selecting the same file
+  }
+}
+
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Decode a QR from a loaded image. Try the natural size first; on failure,
+// downscale large images to ~1000px (jsQR is more reliable on moderate sizes).
+function decodeImageQR(img) {
+  const tryDecode = (w, h) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h);
+    return jsQR(data.data, data.width, data.height, { inversionAttempts: 'attemptBoth' });
+  };
+  let code = tryDecode(img.naturalWidth, img.naturalHeight);
+  if (code?.data) return code.data;
+  // Retry at a moderate size if original was very large
+  const maxSide = Math.max(img.naturalWidth, img.naturalHeight);
+  if (maxSide > 1200) {
+    const scale = 1000 / maxSide;
+    code = tryDecode(Math.round(img.naturalWidth * scale), Math.round(img.naturalHeight * scale));
+    if (code?.data) return code.data;
+  }
+  // Retry inverted-only as a last resort
+  return null;
+}
 
 // --- Scan loop ---
 function scanLoop() {
