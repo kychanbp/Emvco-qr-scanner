@@ -425,7 +425,6 @@ const PAYNET_PARTICIPANTS = {
   '564162': 'Public Bank Berhad', // confirmed
   '564169': 'AmBank',             // confirmed via QRAMB prefix (PERABOT WOON WAH)
   '566001': 'RHB Bank',
-  '566204': 'Hong Leong Bank',
   '566203': 'AmBank',
   '566205': 'UOB Malaysia',
   '566207': 'OCBC Malaysia',
@@ -437,6 +436,7 @@ const PAYNET_PARTICIPANTS = {
   '566213': 'Bank Muamalat',
   '566214': 'Affin Bank',
   '566215': 'Citibank Malaysia',
+  '588830': 'Hong Leong Bank',    // confirmed via Kuantan field visit 2026-05-18 (CHAN + P ONE)
 };
 
 const COUNTRY_LOOKUP = {
