@@ -420,9 +420,10 @@ const ACQUIRER_PREFIXES = {
 // Common PayNet participant codes seen in QR tag 26 sub-tag 01.
 // Coverage is approximate; verify against known QRs you collect.
 const PAYNET_PARTICIPANTS = {
+  '501854': 'CIMB Bank',          // confirmed via Kuantan field visit 2026-05-18 (MILANO OPTICAL)
   '562003': 'Maybank',
-  '564162': 'Public Bank Berhad',
-  '564000': 'CIMB Bank',
+  '564162': 'Public Bank Berhad', // confirmed
+  '564169': 'AmBank',             // confirmed via QRAMB prefix (PERABOT WOON WAH)
   '566001': 'RHB Bank',
   '566204': 'Hong Leong Bank',
   '566203': 'AmBank',
