@@ -44,6 +44,20 @@ const VISIT_SCHEMA = [
     ],
   },
   {
+    group: 'QR sticker provenance',
+    fields: [
+      { id: 'qr_source', label: 'Who provided the QR sticker', type: 'radio', options: ['Bank acquirer', 'E-wallet provider', 'Third-party printer / agent', 'Self-generated from app', 'Came with POS terminal', 'Inherited from previous owner', 'Got from another merchant / friend', 'Other', 'Unknown'] },
+      { id: 'qr_source_named', label: 'Specific entity (bank / wallet / person name)', type: 'text', placeholder: 'e.g., Maybank field rep, TNG sales agent, neighbour' },
+      { id: 'qr_received_how', label: 'How they received it', type: 'radio', options: ['Hand-delivered by rep on site', 'Picked up from branch', 'Mailed / posted', 'WhatsApp / message link', 'Printed from app themselves', 'Other', 'Unknown'] },
+      { id: 'qr_received_when', label: 'When they received it', type: 'radio', options: ['At business opening', 'Within 1 month of opening', '> 1 month after opening', '< 6 months ago (recent)', 'Unknown'] },
+      { id: 'qr_cost', label: 'Cost for the QR', type: 'radio', options: ['Free', 'One-time fee', 'Bundled with bank/wallet account', 'Equipment rental', 'Other charges', 'Unknown'] },
+      { id: 'qr_display', label: 'How displayed', type: 'checkboxes', options: ['Sticker on counter', 'Sticker on wall', 'Table tent / standing card', 'Framed / hung', 'On POS screen', 'On phone / tablet screen', 'Multiple locations in shop', 'Other'] },
+      { id: 'qr_branding', label: 'Branding visible on the QR', type: 'checkboxes', options: ['DuitNow logo', 'Bank logo (Maybank / PBB / CIMB etc.)', 'Wallet brand logo (TNG / Boost / GrabPay / SPay)', 'No branding / plain', 'Custom merchant design', 'Other'] },
+      { id: 'qr_replacement_count', label: 'Has the QR ever been replaced?', type: 'radio', options: ['Original (never replaced)', 'Once', 'Multiple times', 'Unknown'] },
+      { id: 'qr_unusual_offers', label: 'Any unusual offers? (someone offering free QR for a fee, sharing QRs, etc.)', type: 'textarea', placeholder: 'Note any cashout-risk-flavoured stories the merchant volunteers' },
+    ],
+  },
+  {
     group: 'Pain points',
     fields: [
       { id: 'pain_settlement', label: 'Settlement timing issues?', type: 'radio', options: ['Yes', 'No', 'Unknown'] },
