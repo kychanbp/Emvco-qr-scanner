@@ -457,6 +457,7 @@ function renderGpsField(f, data) {
         ts: new Date().toISOString(),
       };
       hidden.value = JSON.stringify(obj);
+      fireInputEvent(hidden);
       display.innerHTML = gpsLine(obj);
     } catch (err) {
       display.innerHTML = '<span class="crc-bad">GPS error: ' + escapeV(err.message) + '</span>';
@@ -470,6 +471,13 @@ function renderGpsField(f, data) {
   wrap.appendChild(btn);
   wrap.appendChild(hidden);
   return wrap;
+}
+
+// Dispatch a synthetic input event so the form-level autoSave listener picks up
+// programmatic value changes (e.g., GPS capture, QR scan inserts, scan removal).
+function fireInputEvent(el) {
+  if (!el) return;
+  el.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 function getGps() {
@@ -571,6 +579,7 @@ function renderQrScansField(f, data) {
           window.QrImageDB.dbDelete(removed.imageId).catch(() => {});
         }
         hidden.value = JSON.stringify(arr2);
+        fireInputEvent(hidden);
         syncList();
       });
     });
@@ -690,6 +699,7 @@ function renderQrScansField(f, data) {
     }
     arr.unshift(scan);
     hidden.value = JSON.stringify(arr);
+    fireInputEvent(hidden);
     syncList();
     if (statusEl) statusEl.textContent = `✓ Captured: ${decoded.summary.merchant || '(no name)'}`;
     if (typeof window.appendScanToHistory === 'function') {
